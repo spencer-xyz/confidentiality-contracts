@@ -12,9 +12,6 @@ const config: HardhatUserConfig = {
       url: "https://devnet.coti.io/rpc",
       chainId: 13068200,
     },
-  },
-  paths:{
-    tests:'test-hardhat',
   }
 }
 
