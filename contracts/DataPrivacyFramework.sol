@@ -5,31 +5,315 @@ pragma solidity 0.8.24;
 import "./Ownable.sol";
 
 abstract contract DataPrivacyFramework is Ownable {
-    struct ConditionValue {
-        uint256 temp;
+    struct Conditions {
+        uint256 id;
+        address caller;
+        string operation;
+        bool active;
+        uint256 timestampBefore;
+        uint256 timestampAfter;
+        bool falseKey;
+        bool trueKey;
+        uint256 uintParameter;
+        address addressParameter;
+        string stringParameter;
+    }
+
+    enum ParameterType {
+        None,
+        UintParam,
+        AddressParam,
+        StringParam
     }
 
     address public constant ADDRESS_ALL = address(1);
 
     string public constant STRING_ALL = "*";
 
-    bool public address_default_permission = true;
+    bool public addressDefaultPermission;
 
-    bool public operation_default_permission = true;
+    bool public operationDefaultPermission;
 
-    mapping(string => bool) public allowed_operations;
+    mapping(string => bool) public allowedOperations;
 
-    mapping(string => bool) public restricted_operations;
+    mapping(string => bool) public restrictedOperations;
 
-    mapping(address => mapping(string => mapping(string => ConditionValue))) public permissions; // caller => operation => condition
+    mapping(address => uint256) public callerRows;
 
-    constructor() Ownable(msg.sender) {}
+    mapping(address => mapping(string => uint256)) public permissions; // caller => operation => idx
 
-    function getPermission() public view returns (bool) {
-        return false;
+    uint256 private _permissionsCount;
+
+    mapping(uint256 => Conditions) private _permissions; // idx => conditions
+
+    constructor(bool addressDefaultPermission_, bool operationDefaultPermission_) Ownable(msg.sender) {
+        addressDefaultPermission = addressDefaultPermission_;
+        operationDefaultPermission = operationDefaultPermission_;
     }
 
-    function setPermission() public onlyOwner returns (bool) {
-        return false;
+    // Start with startIdx=0 and increment by chunkSize until the size of the returned array is less than chunk size
+    // The consumer is expected to filter out inactive permissions and permissions of irrelevant callers
+    function getPermissions(
+        uint256 startIdx,
+        uint256 chunkSize
+    )
+        external
+        view
+        returns (Conditions[] memory)
+    {
+        uint256 arrSize = startIdx + chunkSize - 1 <= _permissionsCount ? chunkSize : _permissionsCount - startIdx + 1;
+
+        Conditions[] memory permissions_ = new Conditions[](arrSize);
+
+        for (uint256 i = 0; i < startIdx + chunkSize; i++) {
+            permissions_[i] = _permissions[i];
+        }
+
+        return permissions_;
+    }
+
+    function getPermission(
+        address caller,
+        string calldata operation
+    )
+        external
+        view
+        returns (bool)
+    {
+        return _evaluateConditions(
+            caller,
+            operation,
+            ParameterType.None,
+            0,
+            address(0),
+            ""
+        );
+    }
+
+    function getPermission(
+        address caller,
+        string calldata operation,
+        uint256 uintParameter
+    )
+        external
+        view
+        returns (bool)
+    {
+        return _evaluateConditions(
+            caller,
+            operation,
+            ParameterType.UintParam,
+            uintParameter,
+            address(0),
+            ""
+        );
+    }
+
+    function getPermission(
+        address caller,
+        string calldata operation,
+        address addressParameter
+    )
+        external
+        view
+        returns (bool)
+    {
+        return _evaluateConditions(
+            caller,
+            operation,
+            ParameterType.AddressParam,
+            0,
+            addressParameter,
+            ""
+        );
+    }
+
+    function getPermission(
+        address caller,
+        string calldata operation,
+        string calldata stringParameter
+    )
+        external
+        view
+        returns (bool)
+    {
+        return _evaluateConditions(
+            caller,
+            operation,
+            ParameterType.StringParam,
+            0,
+            address(0),
+            stringParameter
+        );
+    }
+
+    function setAddressDefaultPermission(bool defaultPermission) external onlyOwner returns (bool) {
+        require(addressDefaultPermission != defaultPermission, "DPF: INVALID_PERMISSION_CHANGE");
+
+        addressDefaultPermission = defaultPermission;
+        
+        return true;
+    }
+
+    function setOperationDefaultPermission(bool defaultPermission) external onlyOwner returns (bool) {
+        require(operationDefaultPermission != defaultPermission, "DPF: INVALID_PERMISSION_CHANGE");
+
+        operationDefaultPermission = defaultPermission;
+        
+        return true;
+    }
+
+    function addAllowedOperation(string calldata operation) external onlyOwner returns (bool) {
+        require(!allowedOperations[operation], "DPF: OPERATION_ALREADY_ALLOWED");
+
+        allowedOperations[operation] = true;
+        
+        return true;
+    }
+
+    function removeAllowedOperation(string calldata operation) external onlyOwner returns (bool) {
+        require(allowedOperations[operation], "DPF: OPERATION_NOT_ALLOWED");
+
+        allowedOperations[operation] = false;
+        
+        return true;
+    }
+
+    function addRestrictedOperation(string calldata operation) external onlyOwner returns (bool) {
+        require(!restrictedOperations[operation], "DPF: OPERATION_ALREADY_RESTRICTED");
+
+        restrictedOperations[operation] = true;
+        
+        return true;
+    }
+
+    function removeRestrictedOperation(string calldata operation) external onlyOwner returns (bool) {
+        require(restrictedOperations[operation], "DPF: OPERATION_NOT_RESTRICTED");
+
+        restrictedOperations[operation] = false;
+        
+        return true;
+    }
+
+    function setPermission(
+        address caller,
+        string calldata operation,
+        bool active,
+        uint256 timestampBefore,
+        uint256 timestampAfter,
+        bool falseKey,
+        bool trueKey,
+        uint256 uintParameter,
+        address addressParameter,
+        string calldata stringParameter
+    )
+        external
+        onlyOwner
+        returns (bool)
+    {
+        if (permissions[caller][operation] == 0) {
+            _permissionsCount++;
+
+            callerRows[caller]++;
+            permissions[caller][operation] = _permissionsCount;
+
+            _permissions[_permissionsCount] = Conditions(
+                _permissionsCount,
+                caller,
+                operation,
+                active,
+                timestampBefore,
+                timestampAfter,
+                falseKey,
+                trueKey,
+                uintParameter,
+                addressParameter,
+                stringParameter
+            );
+        } else {
+            if (active && !_permissions[permissions[caller][operation]].active) {
+                callerRows[caller]++;
+            }
+
+            if (!active && _permissions[permissions[caller][operation]].active) {
+                callerRows[caller]--;
+            }
+
+            _permissions[permissions[caller][operation]] = Conditions(
+                _permissionsCount,
+                caller,
+                operation,
+                active,
+                timestampBefore,
+                timestampAfter,
+                falseKey,
+                trueKey,
+                uintParameter,
+                addressParameter,
+                stringParameter
+            );
+        }
+
+        return true;
+    }
+
+    function _evaluateConditions(
+        address caller,
+        string calldata operation,
+        ParameterType parameterType,
+        uint256 uintParameter,
+        address addressParameter,
+        string memory stringParameter
+    )
+        internal
+        view
+        returns (bool)
+    {
+        if (restrictedOperations[operation]) return false;
+        if (!allowedOperations[STRING_ALL] && !allowedOperations[operation]) return false;
+
+        Conditions memory conditions;
+        
+        if (_permissions[permissions[caller][operation]].active) {
+            conditions = _permissions[permissions[caller][operation]];
+        }
+
+        if (_permissions[permissions[caller][STRING_ALL]].active) {
+            conditions = _permissions[permissions[caller][STRING_ALL]];
+        }
+
+        if (!conditions.active && callerRows[caller] > 0) {
+            return operationDefaultPermission;
+        }
+
+        if (_permissions[permissions[ADDRESS_ALL][operation]].active) {
+            conditions = _permissions[permissions[ADDRESS_ALL][operation]];
+        }
+
+        if (_permissions[permissions[ADDRESS_ALL][STRING_ALL]].active) {
+            conditions = _permissions[permissions[ADDRESS_ALL][STRING_ALL]];
+        }
+
+        if (!conditions.active) {
+            return addressDefaultPermission;
+        }
+
+        if (conditions.falseKey) return false;
+
+        if (conditions.trueKey) return true;
+
+        if (conditions.timestampBefore > 0 && conditions.timestampBefore > block.timestamp) return false;
+
+        if (conditions.timestampAfter > 0 && conditions.timestampAfter < block.timestamp) return false;
+
+        if (parameterType == ParameterType.UintParam && conditions.uintParameter != uintParameter) {
+            return false;
+        } else if (parameterType == ParameterType.AddressParam && conditions.addressParameter != addressParameter) {
+            return false;
+        } else if (parameterType == ParameterType.StringParam && keccak256(abi.encodePacked(conditions.stringParameter)) != keccak256(abi.encodePacked(stringParameter))) {
+            return false;
+        }
+
+        return true;
     }
 }
