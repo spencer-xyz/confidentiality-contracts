@@ -5,18 +5,18 @@ import { setupAccounts } from "./util/onboard"
 async function deploy() {
   const [owner, otherAccount] = await setupAccounts()
 
-  const SimpleStorage = await hre.ethers.getContractFactory("SimpleStorage")
+  const DataPrivacyFramework = await hre.ethers.getContractFactory("MockDataPrivacyFramework")
 
-  const simpleStorage = await SimpleStorage
+  const dataPrivacyFramework = await DataPrivacyFramework
     .connect(owner.wallet)
     .deploy()
 
-  const contract = await simpleStorage.waitForDeployment()
+  const contract = await dataPrivacyFramework.waitForDeployment()
   
   return { contract, contractAddress: await contract.getAddress(), owner, otherAccount }
 }
 
-describe("Simple Storage", function () {
+describe("Data Privacy Framework", function () {
   let deployment: Awaited<ReturnType<typeof deploy>>
 
   before(async function () {

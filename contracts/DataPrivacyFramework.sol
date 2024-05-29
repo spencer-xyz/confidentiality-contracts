@@ -5,6 +5,20 @@ pragma solidity 0.8.24;
 import "./Ownable.sol";
 
 abstract contract DataPrivacyFramework is Ownable {
+    // Needed for avoiding "stack too deep" error
+    struct InputData {
+        address caller;
+        string operation;
+        bool active;
+        uint256 timestampBefore;
+        uint256 timestampAfter;
+        bool falseKey;
+        bool trueKey;
+        uint256 uintParameter;
+        address addressParameter;
+        string stringParameter;
+    }
+
     struct Conditions {
         uint256 id;
         address caller;
@@ -195,63 +209,45 @@ abstract contract DataPrivacyFramework is Ownable {
         return true;
     }
 
-    function setPermission(
-        address caller,
-        string calldata operation,
-        bool active,
-        uint256 timestampBefore,
-        uint256 timestampAfter,
-        bool falseKey,
-        bool trueKey,
-        uint256 uintParameter,
-        address addressParameter,
-        string calldata stringParameter
-    )
-        external
-        onlyOwner
-        returns (bool)
-    {
-        if (permissions[caller][operation] == 0) {
+    function setPermission(InputData memory inputData) external onlyOwner returns (bool) {
+        if (permissions[inputData.caller][inputData.operation] == 0) {
             _permissionsCount++;
 
-            callerRows[caller]++;
-            permissions[caller][operation] = _permissionsCount;
+            callerRows[inputData.caller]++;
+            permissions[inputData.caller][inputData.operation] = _permissionsCount;
 
             _permissions[_permissionsCount] = Conditions(
                 _permissionsCount,
-                caller,
-                operation,
-                active,
-                timestampBefore,
-                timestampAfter,
-                falseKey,
-                trueKey,
-                uintParameter,
-                addressParameter,
-                stringParameter
+                inputData.caller,
+                inputData.operation,
+                inputData.active,
+                inputData.timestampBefore,
+                inputData.timestampAfter,
+                inputData.falseKey,
+                inputData.trueKey,
+                inputData.uintParameter,
+                inputData.addressParameter,
+                inputData.stringParameter
             );
         } else {
-            if (active && !_permissions[permissions[caller][operation]].active) {
-                callerRows[caller]++;
+            if (inputData.active && !_permissions[permissions[inputData.caller][inputData.operation]].active) {
+                callerRows[inputData.caller]++;
             }
 
-            if (!active && _permissions[permissions[caller][operation]].active) {
-                callerRows[caller]--;
+            if (!inputData.active && _permissions[permissions[inputData.caller][inputData.operation]].active) {
+                callerRows[inputData.caller]--;
             }
 
-            _permissions[permissions[caller][operation]] = Conditions(
-                _permissionsCount,
-                caller,
-                operation,
-                active,
-                timestampBefore,
-                timestampAfter,
-                falseKey,
-                trueKey,
-                uintParameter,
-                addressParameter,
-                stringParameter
-            );
+            Conditions storage conditions = _permissions[permissions[inputData.caller][inputData.operation]];
+
+            conditions.active = inputData.active;
+            conditions.timestampBefore = inputData.timestampBefore;
+            conditions.timestampAfter = inputData.timestampAfter;
+            conditions.falseKey = inputData.falseKey;
+            conditions.trueKey = inputData.trueKey;
+            conditions.uintParameter = inputData.uintParameter;
+            conditions.addressParameter = inputData.addressParameter;
+            conditions.stringParameter = inputData.stringParameter;
         }
 
         return true;
