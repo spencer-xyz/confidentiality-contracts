@@ -327,9 +327,9 @@ abstract contract DataPrivacyFramework is Ownable {
 
         if (condition.trueKey) return true;
 
-        if (condition.timestampBefore > 0 && condition.timestampBefore > block.timestamp) return false;
+        if (condition.timestampBefore > 0 && condition.timestampBefore < block.timestamp) return false;
 
-        if (condition.timestampAfter > 0 && condition.timestampAfter < block.timestamp) return false;
+        if (condition.timestampAfter > 0 && condition.timestampAfter > block.timestamp) return false;
 
         if (parameterType == ParameterType.UintParam && condition.uintParameter != uintParameter) {
             return false;

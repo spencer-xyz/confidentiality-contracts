@@ -248,6 +248,81 @@ describe("Data Privacy Framework", function () {
 
       expect(permissionGranted).to.equal(false)
     })
+
+    it("Should not increment callerRows", async function () {
+      const { contract } = deployment
+
+      const inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562",
+        operation: "gt",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000001",
+        stringParameter: ""
+      }
+
+      const tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const callerRows = await contract.callerRows("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562")
+
+      expect(callerRows).to.equal(1)
+    })
+
+    it("Should decrement callerRows", async function () {
+      const { contract } = deployment
+
+      const inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562",
+        operation: "gt",
+        active: false,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000001",
+        stringParameter: ""
+      }
+
+      const tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const callerRows = await contract.callerRows("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562")
+
+      expect(callerRows).to.equal(0)
+    })
+
+    it("Should increment callerRows", async function () {
+      const { contract } = deployment
+
+      const inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562",
+        operation: "gt",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000001",
+        stringParameter: ""
+      }
+
+      const tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const callerRows = await contract.callerRows("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562")
+
+      expect(callerRows).to.equal(1)
+    })
   })
 
   describe("Downloading conditions table", function () {
@@ -345,6 +420,367 @@ describe("Data Privacy Framework", function () {
       const conditions = await contract.getPermissions(5, 2)
 
       expect(conditions.length).to.equal(1)
+    })
+  })
+
+  describe("Evaluate condition", function () {
+    it("Should return false due to falseKey", async function () {
+      const { contract } = deployment
+
+      let inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0x5b8E1b957369135d58a86c736F5eea661B929227", // random address
+        operation: "gt",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: true,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      let tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const permissionGranted = await contract["getPermission(address,string)"](
+        "0x5b8E1b957369135d58a86c736F5eea661B929227",
+        "gt"
+      )
+
+      expect(permissionGranted).to.equal(false)
+    })
+
+    it("Should return true due to trueKey", async function () {
+      const { contract } = deployment
+
+      let inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0x5b8E1b957369135d58a86c736F5eea661B929227", // random address
+        operation: "gt",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: true,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      let tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const permissionGranted = await contract["getPermission(address,string)"](
+        "0x5b8E1b957369135d58a86c736F5eea661B929227",
+        "gt"
+      )
+
+      expect(permissionGranted).to.equal(true)
+    })
+
+    it("Should return false due to timestampBefore", async function () {
+      const { contract } = deployment
+
+      let inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0x5b8E1b957369135d58a86c736F5eea661B929227", // random address
+        operation: "gt",
+        active: true,
+        timestampBefore: BigInt(1),
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      let tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const permissionGranted = await contract["getPermission(address,string)"](
+        "0x5b8E1b957369135d58a86c736F5eea661B929227",
+        "gt"
+      )
+
+      expect(permissionGranted).to.equal(false)
+    })
+
+    it("Should return false due to timestampAfter", async function () {
+      const { contract } = deployment
+
+      let inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0x5b8E1b957369135d58a86c736F5eea661B929227", // random address
+        operation: "gt",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: BigInt(2716990740),
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      let tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const permissionGranted = await contract["getPermission(address,string)"](
+        "0x5b8E1b957369135d58a86c736F5eea661B929227",
+        "gt"
+      )
+
+      expect(permissionGranted).to.equal(false)
+    })
+
+    it("Should return false due to uintParameter", async function () {
+      const { contract } = deployment
+
+      let inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0x5b8E1b957369135d58a86c736F5eea661B929227", // random address
+        operation: "gt",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: BigInt(1),
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      let tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const permissionGranted = await contract["getPermission(address,string,uint256)"](
+        "0x5b8E1b957369135d58a86c736F5eea661B929227",
+        "gt",
+        BigInt(2)
+      )
+
+      expect(permissionGranted).to.equal(false)
+    })
+
+    it("Should return false due to addressParameter", async function () {
+      const { contract } = deployment
+
+      let inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0x5b8E1b957369135d58a86c736F5eea661B929227", // random address
+        operation: "gt",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000001",
+        stringParameter: ""
+      }
+
+      let tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const permissionGranted = await contract["getPermission(address,string,address)"](
+        "0x5b8E1b957369135d58a86c736F5eea661B929227",
+        "gt",
+        "0x0000000000000000000000000000000000000002"
+      )
+
+      expect(permissionGranted).to.equal(false)
+    })
+
+    it("Should return false due to addressParameter", async function () {
+      const { contract } = deployment
+
+      let inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0x5b8E1b957369135d58a86c736F5eea661B929227", // random address
+        operation: "gt",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: "abc"
+      }
+
+      let tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const permissionGranted = await contract["getPermission(address,string,string)"](
+        "0x5b8E1b957369135d58a86c736F5eea661B929227",
+        "gt",
+        "def"
+      )
+
+      expect(permissionGranted).to.equal(false)
+    })
+  })
+
+  describe("Get permission", function () {
+    before(async function() {
+      const { contract } = deployment
+
+      let tx = await contract.setAddressDefaultPermission(true)
+      
+      await tx.wait()
+
+      tx = await contract.setOperationDefaultPermission(true)
+      
+      await tx.wait()
+    })
+
+    it("Should return true due to caller holding generic permission", async function () {
+      const { contract } = deployment
+
+      let inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0xbC70898a84DE49d3aA3190b124542bc5eca88A5C", // random address
+        operation: "*",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      let tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const permissionGranted = await contract["getPermission(address,string)"](
+        "0xbC70898a84DE49d3aA3190b124542bc5eca88A5C",
+        "gt"
+      )
+
+      expect(permissionGranted).to.equal(true)
+    })
+
+    it("Should return true due to default operation permission", async function () {
+      const { contract } = deployment
+
+      let inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0xbC70898a84DE49d3aA3190b124542bc5eca88A5C", // random address
+        operation: "*",
+        active: false,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      let tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      inputData = {
+        caller: "0xbC70898a84DE49d3aA3190b124542bc5eca88A5C", // random address
+        operation: "gte",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const permissionGranted = await contract["getPermission(address,string)"](
+        "0xbC70898a84DE49d3aA3190b124542bc5eca88A5C",
+        "gt"
+      )
+
+      expect(permissionGranted).to.equal(true)
+    })
+
+    it("Should return true due to generic address holding the specific permission", async function () {
+      const { contract } = deployment
+
+      let inputData = {
+        caller: "0x0000000000000000000000000000000000000001", // generic address
+        operation: "gt",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      let tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const permissionGranted = await contract["getPermission(address,string)"](
+        "0x9e874196782e439FD2CEFcF62bC5c59816a6ae8b",
+        "gt"
+      )
+
+      expect(permissionGranted).to.equal(true)
+    })
+
+    it("Should return true due to generic address holding the generic permission", async function () {
+      const { contract } = deployment
+
+      let inputData = {
+        caller: "0x0000000000000000000000000000000000000001", // generic address
+        operation: "gt",
+        active: false,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      let tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      inputData = {
+        caller: "0x0000000000000000000000000000000000000001", // generic address
+        operation: "*",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      const permissionGranted = await contract["getPermission(address,string)"](
+        "0x9e874196782e439FD2CEFcF62bC5c59816a6ae8b",
+        "gt"
+      )
+
+      expect(permissionGranted).to.equal(true)
     })
   })
 })
