@@ -19,7 +19,7 @@ abstract contract DataPrivacyFramework is Ownable {
         string stringParameter;
     }
 
-    struct Conditions {
+    struct Condition {
         uint256 id;
         address caller;
         string operation;
@@ -56,9 +56,9 @@ abstract contract DataPrivacyFramework is Ownable {
 
     mapping(address => mapping(string => uint256)) public permissions; // caller => operation => idx
 
-    uint256 private _permissionsCount;
+    uint256 private _conditionsCount;
 
-    mapping(uint256 => Conditions) private _permissions; // idx => conditions
+    mapping(uint256 => Condition) public conditions; // idx => conditions
 
     constructor(bool addressDefaultPermission_, bool operationDefaultPermission_) Ownable(msg.sender) {
         addressDefaultPermission = addressDefaultPermission_;
@@ -73,14 +73,14 @@ abstract contract DataPrivacyFramework is Ownable {
     )
         external
         view
-        returns (Conditions[] memory)
+        returns (Condition[] memory)
     {
-        uint256 arrSize = startIdx + chunkSize - 1 <= _permissionsCount ? chunkSize : _permissionsCount - startIdx + 1;
+        uint256 arrSize = startIdx + chunkSize - 1 <= _conditionsCount ? chunkSize : _conditionsCount - startIdx + 1;
 
-        Conditions[] memory permissions_ = new Conditions[](arrSize);
+        Condition[] memory permissions_ = new Condition[](arrSize);
 
         for (uint256 i = 0; i < startIdx + chunkSize; i++) {
-            permissions_[i] = _permissions[i];
+            permissions_[i] = conditions[i];
         }
 
         return permissions_;
@@ -94,7 +94,7 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (bool)
     {
-        return _evaluateConditions(
+        return _evaluateCondition(
             caller,
             operation,
             ParameterType.None,
@@ -113,7 +113,7 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (bool)
     {
-        return _evaluateConditions(
+        return _evaluateCondition(
             caller,
             operation,
             ParameterType.UintParam,
@@ -132,7 +132,7 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (bool)
     {
-        return _evaluateConditions(
+        return _evaluateCondition(
             caller,
             operation,
             ParameterType.AddressParam,
@@ -151,7 +151,7 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (bool)
     {
-        return _evaluateConditions(
+        return _evaluateCondition(
             caller,
             operation,
             ParameterType.StringParam,
@@ -211,13 +211,13 @@ abstract contract DataPrivacyFramework is Ownable {
 
     function setPermission(InputData memory inputData) external onlyOwner returns (bool) {
         if (permissions[inputData.caller][inputData.operation] == 0) {
-            _permissionsCount++;
+            _conditionsCount++;
 
             callerRows[inputData.caller]++;
-            permissions[inputData.caller][inputData.operation] = _permissionsCount;
+            permissions[inputData.caller][inputData.operation] = _conditionsCount;
 
-            _permissions[_permissionsCount] = Conditions(
-                _permissionsCount,
+            conditions[_conditionsCount] = Condition(
+                _conditionsCount,
                 inputData.caller,
                 inputData.operation,
                 inputData.active,
@@ -230,30 +230,30 @@ abstract contract DataPrivacyFramework is Ownable {
                 inputData.stringParameter
             );
         } else {
-            if (inputData.active && !_permissions[permissions[inputData.caller][inputData.operation]].active) {
+            if (inputData.active && !conditions[permissions[inputData.caller][inputData.operation]].active) {
                 callerRows[inputData.caller]++;
             }
 
-            if (!inputData.active && _permissions[permissions[inputData.caller][inputData.operation]].active) {
+            if (!inputData.active && conditions[permissions[inputData.caller][inputData.operation]].active) {
                 callerRows[inputData.caller]--;
             }
 
-            Conditions storage conditions = _permissions[permissions[inputData.caller][inputData.operation]];
+            Condition storage condition = conditions[permissions[inputData.caller][inputData.operation]];
 
-            conditions.active = inputData.active;
-            conditions.timestampBefore = inputData.timestampBefore;
-            conditions.timestampAfter = inputData.timestampAfter;
-            conditions.falseKey = inputData.falseKey;
-            conditions.trueKey = inputData.trueKey;
-            conditions.uintParameter = inputData.uintParameter;
-            conditions.addressParameter = inputData.addressParameter;
-            conditions.stringParameter = inputData.stringParameter;
+            condition.active = inputData.active;
+            condition.timestampBefore = inputData.timestampBefore;
+            condition.timestampAfter = inputData.timestampAfter;
+            condition.falseKey = inputData.falseKey;
+            condition.trueKey = inputData.trueKey;
+            condition.uintParameter = inputData.uintParameter;
+            condition.addressParameter = inputData.addressParameter;
+            condition.stringParameter = inputData.stringParameter;
         }
 
         return true;
     }
 
-    function _evaluateConditions(
+    function _evaluateCondition(
         address caller,
         string calldata operation,
         ParameterType parameterType,
@@ -268,45 +268,45 @@ abstract contract DataPrivacyFramework is Ownable {
         if (restrictedOperations[operation]) return false;
         if (!allowedOperations[STRING_ALL] && !allowedOperations[operation]) return false;
 
-        Conditions memory conditions;
+        Condition memory condition;
         
-        if (_permissions[permissions[caller][operation]].active) {
-            conditions = _permissions[permissions[caller][operation]];
+        if (conditions[permissions[caller][operation]].active) {
+            condition = conditions[permissions[caller][operation]];
         }
 
-        if (_permissions[permissions[caller][STRING_ALL]].active) {
-            conditions = _permissions[permissions[caller][STRING_ALL]];
+        if (conditions[permissions[caller][STRING_ALL]].active) {
+            condition = conditions[permissions[caller][STRING_ALL]];
         }
 
-        if (!conditions.active && callerRows[caller] > 0) {
+        if (!condition.active && callerRows[caller] > 0) {
             return operationDefaultPermission;
         }
 
-        if (_permissions[permissions[ADDRESS_ALL][operation]].active) {
-            conditions = _permissions[permissions[ADDRESS_ALL][operation]];
+        if (conditions[permissions[ADDRESS_ALL][operation]].active) {
+            condition = conditions[permissions[ADDRESS_ALL][operation]];
         }
 
-        if (_permissions[permissions[ADDRESS_ALL][STRING_ALL]].active) {
-            conditions = _permissions[permissions[ADDRESS_ALL][STRING_ALL]];
+        if (conditions[permissions[ADDRESS_ALL][STRING_ALL]].active) {
+            condition = conditions[permissions[ADDRESS_ALL][STRING_ALL]];
         }
 
-        if (!conditions.active) {
+        if (!condition.active) {
             return addressDefaultPermission;
         }
 
-        if (conditions.falseKey) return false;
+        if (condition.falseKey) return false;
 
-        if (conditions.trueKey) return true;
+        if (condition.trueKey) return true;
 
-        if (conditions.timestampBefore > 0 && conditions.timestampBefore > block.timestamp) return false;
+        if (condition.timestampBefore > 0 && condition.timestampBefore > block.timestamp) return false;
 
-        if (conditions.timestampAfter > 0 && conditions.timestampAfter < block.timestamp) return false;
+        if (condition.timestampAfter > 0 && condition.timestampAfter < block.timestamp) return false;
 
-        if (parameterType == ParameterType.UintParam && conditions.uintParameter != uintParameter) {
+        if (parameterType == ParameterType.UintParam && condition.uintParameter != uintParameter) {
             return false;
-        } else if (parameterType == ParameterType.AddressParam && conditions.addressParameter != addressParameter) {
+        } else if (parameterType == ParameterType.AddressParam && condition.addressParameter != addressParameter) {
             return false;
-        } else if (parameterType == ParameterType.StringParam && keccak256(abi.encodePacked(conditions.stringParameter)) != keccak256(abi.encodePacked(stringParameter))) {
+        } else if (parameterType == ParameterType.StringParam && keccak256(abi.encodePacked(condition.stringParameter)) != keccak256(abi.encodePacked(stringParameter))) {
             return false;
         }
 
