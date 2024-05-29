@@ -95,7 +95,7 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (bool)
     {
-        return _evaluateCondition(
+        return _getPermission(
             caller,
             operation,
             ParameterType.None,
@@ -114,7 +114,7 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (bool)
     {
-        return _evaluateCondition(
+        return _getPermission(
             caller,
             operation,
             ParameterType.UintParam,
@@ -133,7 +133,7 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (bool)
     {
-        return _evaluateCondition(
+        return _getPermission(
             caller,
             operation,
             ParameterType.AddressParam,
@@ -152,7 +152,7 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (bool)
     {
-        return _evaluateCondition(
+        return _getPermission(
             caller,
             operation,
             ParameterType.StringParam,
@@ -254,9 +254,66 @@ abstract contract DataPrivacyFramework is Ownable {
         return true;
     }
 
-    function _evaluateCondition(
+    function _getPermission(
         address caller,
         string calldata operation,
+        ParameterType parameterType,
+        uint256 uintParameter,
+        address addressParameter,
+        string memory stringParameter
+    ) internal view returns (bool) {
+        if (restrictedOperations[operation]) return false;
+        if (!allowedOperations[STRING_ALL] && !allowedOperations[operation]) return false;
+        
+        if (conditions[permissions[caller][operation]].active) {
+            return _evaluateCondition(
+                conditions[permissions[caller][operation]],
+                parameterType,
+                uintParameter,
+                addressParameter,
+                stringParameter
+            );
+        }
+
+        if (conditions[permissions[caller][STRING_ALL]].active) {
+            return _evaluateCondition(
+                conditions[permissions[caller][STRING_ALL]],
+                parameterType,
+                uintParameter,
+                addressParameter,
+                stringParameter
+            );
+        }
+
+        if (callerRows[caller] > 0) {
+            return operationDefaultPermission;
+        }
+
+        if (conditions[permissions[ADDRESS_ALL][operation]].active) {
+            return _evaluateCondition(
+                conditions[permissions[ADDRESS_ALL][operation]],
+                parameterType,
+                uintParameter,
+                addressParameter,
+                stringParameter
+            );
+        }
+
+        if (conditions[permissions[ADDRESS_ALL][STRING_ALL]].active) {
+            return _evaluateCondition(
+                conditions[permissions[ADDRESS_ALL][STRING_ALL]],
+                parameterType,
+                uintParameter,
+                addressParameter,
+                stringParameter
+            );
+        }
+
+        return addressDefaultPermission;
+    }
+
+    function _evaluateCondition(
+        Condition memory condition,
         ParameterType parameterType,
         uint256 uintParameter,
         address addressParameter,
@@ -266,35 +323,6 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (bool)
     {
-        if (restrictedOperations[operation]) return false;
-        if (!allowedOperations[STRING_ALL] && !allowedOperations[operation]) return false;
-
-        Condition memory condition;
-        
-        if (conditions[permissions[caller][operation]].active) {
-            condition = conditions[permissions[caller][operation]];
-        }
-
-        if (conditions[permissions[caller][STRING_ALL]].active) {
-            condition = conditions[permissions[caller][STRING_ALL]];
-        }
-
-        if (!condition.active && callerRows[caller] > 0) {
-            return operationDefaultPermission;
-        }
-
-        if (conditions[permissions[ADDRESS_ALL][operation]].active) {
-            condition = conditions[permissions[ADDRESS_ALL][operation]];
-        }
-
-        if (conditions[permissions[ADDRESS_ALL][STRING_ALL]].active) {
-            condition = conditions[permissions[ADDRESS_ALL][STRING_ALL]];
-        }
-
-        if (!condition.active) {
-            return addressDefaultPermission;
-        }
-
         if (condition.falseKey) return false;
 
         if (condition.trueKey) return true;
