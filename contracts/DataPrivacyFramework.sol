@@ -5,6 +5,7 @@ pragma solidity 0.8.24;
 import "./Ownable.sol";
 
 abstract contract DataPrivacyFramework is Ownable {
+
     // Needed for avoiding "stack too deep" error
     struct InputData {
         address caller;
@@ -65,7 +66,7 @@ abstract contract DataPrivacyFramework is Ownable {
         operationDefaultPermission = operationDefaultPermission_;
     }
 
-    // Start with startIdx=0 and increment by chunkSize until the size of the returned array is less than chunk size
+    // Start with startIdx=1 and increment by chunkSize until the size of the returned array is less than chunk size
     // The consumer is expected to filter out inactive permissions and permissions of irrelevant callers
     function getPermissions(
         uint256 startIdx,
@@ -79,8 +80,8 @@ abstract contract DataPrivacyFramework is Ownable {
 
         Condition[] memory permissions_ = new Condition[](arrSize);
 
-        for (uint256 i = 0; i < startIdx + chunkSize; i++) {
-            permissions_[i] = conditions[i];
+        for (uint256 i = 0; i < arrSize; i++) {
+            permissions_[i] = conditions[startIdx + i];
         }
 
         return permissions_;

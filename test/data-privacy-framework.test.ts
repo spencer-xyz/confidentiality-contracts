@@ -86,7 +86,7 @@ describe("Data Privacy Framework", function () {
       await tx.wait()
     })
 
-    it("Should update the allowed operations mapping", async function () {
+    it("Should add 'decrypt' to the restricted operations mapping", async function () {
       const { contract } = deployment
 
       const isRestricted = await contract.restrictedOperations("decrypt")
@@ -116,6 +116,18 @@ describe("Data Privacy Framework", function () {
       expect(permissionGranted).to.equal(true)
     })
 
+    it("Should remove 'decrypt' from the restricted operations mapping", async function () {
+      const { contract } = deployment
+
+      const tx = await contract.removeRestrictedOperation("decrypt")
+
+      await tx.wait()
+
+      const isRestricted = await contract.restrictedOperations("decrypt")
+
+      expect(isRestricted).to.equal(false)
+    })
+
     after(async function() {
       const { contract } = deployment
 
@@ -129,7 +141,37 @@ describe("Data Privacy Framework", function () {
     })
   })
 
-  describe("Setting Permissions", function () {
+  describe("Updating default permissions", function () {
+    before(async function() {
+      const { contract } = deployment
+
+      let tx = await contract.setAddressDefaultPermission(false)
+      
+      await tx.wait()
+
+      tx = await contract.setOperationDefaultPermission(false)
+      
+      await tx.wait()
+    })
+
+    it("Should set default address permissions to false", async function () {
+      const { contract } = deployment
+
+      const defaultPermission = await contract.addressDefaultPermission()
+
+      expect(defaultPermission).to.equal(false)
+    })
+
+    it("Should set default operation permissions to false", async function () {
+      const { contract } = deployment
+
+      const defaultPermission = await contract.operationDefaultPermission()
+
+      expect(defaultPermission).to.equal(false)
+    })
+  })
+
+  describe("Setting permissions", function () {
     before(async function() {
       const { contract } = deployment
 
@@ -183,6 +225,126 @@ describe("Data Privacy Framework", function () {
       const rows = await contract.callerRows("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562")
 
       expect(rows).to.equal(1)
+    })
+
+    it("Should allow 0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562 to compute gt", async function () {
+      const { contract } = deployment
+
+      const permissionGranted = await contract["getPermission(address,string)"](
+        "0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562",
+        "gt"
+      )
+
+      expect(permissionGranted).to.equal(true)
+    })
+
+    it("Should not allow other addresses to compute gt", async function () {
+      const { contract } = deployment
+
+      const permissionGranted = await contract["getPermission(address,string)"](
+        "0x7dc13edFF17da7e6D903573E688A5e06746B85e1", // random address
+        "gt"
+      )
+
+      expect(permissionGranted).to.equal(false)
+    })
+  })
+
+  describe("Downloading conditions table", function () {
+    before(async function() {
+      const { contract } = deployment
+
+      let inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0x2943dE47d15538a99C25246Ac8628da5D3EC7DA8",
+        operation: "ntyxygayec",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      let tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      inputData = {
+        caller: "0x9794eA465f89231eaaB730d87A2083E1ae091Bc6",
+        operation: "gkdswnhthi",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      inputData = {
+        caller: "0x377005C508C0a44Ee986fA344A61FDCA453Cb31F",
+        operation: "zqotxlwxwz",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      inputData = {
+        caller: "0xe57F3505af334be3081F803F0453B1CBD006829d",
+        operation: "pavdshgymp",
+        active: true,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+    })
+
+    it("Should return the first two conditions", async function () {
+      const { contract } = deployment
+
+      const conditions = await contract.getPermissions(1, 2)
+
+      expect(conditions.length).to.equal(2)
+    })
+
+    it("Should return the third and fourth conditions", async function () {
+      const { contract } = deployment
+
+      const conditions = await contract.getPermissions(3, 2)
+
+      expect(conditions.length).to.equal(2)
+    })
+
+    it("Should return the fifth condition", async function () {
+      const { contract } = deployment
+
+      const conditions = await contract.getPermissions(5, 2)
+
+      expect(conditions.length).to.equal(1)
     })
   })
 })
