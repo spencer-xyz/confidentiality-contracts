@@ -7,6 +7,7 @@ import "./Ownable.sol";
 abstract contract DataPrivacyFramework is Ownable {
 
     // struct needed for avoiding "stack too deep" error
+    // see Condition struct for further details
     struct InputData {
         address caller;
         string operation;
@@ -86,6 +87,8 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (Condition[] memory)
     {
+        require(startIdx <= _conditionsCount, "DPF: INVALID_START_IDX");
+
         // ensures that startIdx + arrSize is not larger than the maximum condition ID
         uint256 arrSize = startIdx + chunkSize - 1 <= _conditionsCount ? chunkSize : _conditionsCount - startIdx + 1;
 
