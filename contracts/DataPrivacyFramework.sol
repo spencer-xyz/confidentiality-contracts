@@ -6,7 +6,7 @@ import "./Ownable.sol";
 
 abstract contract DataPrivacyFramework is Ownable {
 
-    // Needed for avoiding "stack too deep" error
+    // struct needed for avoiding "stack too deep" error
     struct InputData {
         address caller;
         string operation;
@@ -21,17 +21,17 @@ abstract contract DataPrivacyFramework is Ownable {
     }
 
     struct Condition {
-        uint256 id;
-        address caller;
-        string operation;
-        bool active;
-        uint256 timestampBefore;
-        uint256 timestampAfter;
-        bool falseKey;
-        bool trueKey;
-        uint256 uintParameter;
-        address addressParameter;
-        string stringParameter;
+        uint256 id; // numeric ID of the condition
+        address caller; // caller associated with this condition
+        string operation; // operation associated with this condition
+        bool active; // indicates if the permission is active
+        uint256 timestampBefore; // condition is valid before this timestamp
+        uint256 timestampAfter; // condition is valid after this timestamp
+        bool falseKey; // causes the condition to never be satisfied
+        bool trueKey; // causes the permission to always be satisfied (but has lower priority than falseKey)
+        uint256 uintParameter; // parameter of type uint256 used for verifying if the caller has permission to perform the computation
+        address addressParameter; // parameter of type address used for verifying if the caller has permission to perform the computation
+        string stringParameter;// parameter of type string used for verifying if the caller has permission to perform the computation
     }
 
     enum ParameterType {
@@ -41,9 +41,9 @@ abstract contract DataPrivacyFramework is Ownable {
         StringParam
     }
 
-    address public constant ADDRESS_ALL = address(1);
+    address public constant ADDRESS_ALL = address(1); // used to indicate the generic address (equivalent to "*")
 
-    string public constant STRING_ALL = "*";
+    string public constant STRING_ALL = "*"; // used to indicate the generic string
 
     bool public addressDefaultPermission;
 
@@ -53,7 +53,7 @@ abstract contract DataPrivacyFramework is Ownable {
 
     mapping(string => bool) public restrictedOperations;
 
-    mapping(address => uint256) public callerRows;
+    mapping(address => uint256) public activePermissions;
 
     mapping(address => mapping(string => uint256)) public permissions; // caller => operation => idx
 
@@ -61,14 +61,24 @@ abstract contract DataPrivacyFramework is Ownable {
 
     mapping(uint256 => Condition) public conditions; // idx => conditions
 
+    /**
+     * @param addressDefaultPermission_ default address permission
+     * @param operationDefaultPermission_  default operation permission
+     */
     constructor(bool addressDefaultPermission_, bool operationDefaultPermission_) Ownable(msg.sender) {
         addressDefaultPermission = addressDefaultPermission_;
         operationDefaultPermission = operationDefaultPermission_;
     }
 
-    // Start with startIdx=1 and increment by chunkSize until the size of the returned array is less than chunk size
-    // The consumer is expected to filter out inactive permissions and permissions of irrelevant callers
-    function getPermissions(
+    /**
+     * @notice downloads the entire conditions mapping with paging
+     * @dev start with startIdx=1 and increment by chunkSize until the size of the returned array is less than chunk size
+     * @dev the developer is responsible for filtering out inactive conditions and conditions that are irrelevant
+     * @param startIdx the index of the first condition to include in the list of returned conditions
+     * @param chunkSize the maximum number of conditions to return (needed to avoid running out of gas)
+     * @return _ array of conditions
+     */
+    function getConditions(
         uint256 startIdx,
         uint256 chunkSize
     )
@@ -76,17 +86,24 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (Condition[] memory)
     {
+        // ensures that startIdx + arrSize is not larger than the maximum condition ID
         uint256 arrSize = startIdx + chunkSize - 1 <= _conditionsCount ? chunkSize : _conditionsCount - startIdx + 1;
 
-        Condition[] memory permissions_ = new Condition[](arrSize);
+        Condition[] memory conditions_ = new Condition[](arrSize);
 
         for (uint256 i = 0; i < arrSize; i++) {
-            permissions_[i] = conditions[startIdx + i];
+            conditions_[i] = conditions[startIdx + i];
         }
 
-        return permissions_;
+        return conditions_;
     }
 
+    /**
+     * @notice determines whether the provided caller has sufficient permission to perform the given computation
+     * @param caller the address of the user who is seeking permission to perform some computation on private data
+     * @param operation the operation which the user is seeking to perform
+     * @return _ boolean indicating if the user has permission to perform the computation
+     */
     function getPermission(
         address caller,
         string calldata operation
@@ -105,6 +122,13 @@ abstract contract DataPrivacyFramework is Ownable {
         );
     }
 
+    /**
+     * @notice determines whether the provided caller has sufficient permission to perform the given computation
+     * @param caller the address of the user who is seeking permission to perform some computation on private data
+     * @param operation the operation which the user is seeking to perform
+     * @param uintParameter parameter of type uint256 used to check for permissions
+     * @return _ boolean indicating if the user has permission to perform the computation
+     */
     function getPermission(
         address caller,
         string calldata operation,
@@ -124,6 +148,13 @@ abstract contract DataPrivacyFramework is Ownable {
         );
     }
 
+    /**
+     * @notice determines whether the provided caller has sufficient permission to perform the given computation
+     * @param caller the address of the user who is seeking permission to perform some computation on private data
+     * @param operation the operation which the user is seeking to perform
+     * @param addressParameter parameter of type address used to check for permissions
+     * @return _ boolean indicating if the user has permission to perform the computation
+     */
     function getPermission(
         address caller,
         string calldata operation,
@@ -143,6 +174,13 @@ abstract contract DataPrivacyFramework is Ownable {
         );
     }
 
+    /**
+     * @notice determines whether the provided caller has sufficient permission to perform the given computation
+     * @param caller the address of the user who is seeking permission to perform some computation on private data
+     * @param operation the operation which the user is seeking to perform
+     * @param stringParameter parameter of type string used to check for permissions
+     * @return _ boolean indicating if the user has permission to perform the computation
+     */
     function getPermission(
         address caller,
         string calldata operation,
@@ -162,6 +200,11 @@ abstract contract DataPrivacyFramework is Ownable {
         );
     }
 
+    /**
+     * @notice updates the default address permission
+     * @param defaultPermission new value of the default address permission
+     * @return _ boolean indicating if the update succeeded
+     */
     function setAddressDefaultPermission(bool defaultPermission) external onlyOwner returns (bool) {
         require(addressDefaultPermission != defaultPermission, "DPF: INVALID_PERMISSION_CHANGE");
 
@@ -170,6 +213,11 @@ abstract contract DataPrivacyFramework is Ownable {
         return true;
     }
 
+    /**
+     * @notice updates the default operation permission
+     * @param defaultPermission new value of the default operation permission
+     * @return _ boolean indicating if the update succeeded
+     */
     function setOperationDefaultPermission(bool defaultPermission) external onlyOwner returns (bool) {
         require(operationDefaultPermission != defaultPermission, "DPF: INVALID_PERMISSION_CHANGE");
 
@@ -178,6 +226,11 @@ abstract contract DataPrivacyFramework is Ownable {
         return true;
     }
 
+    /**
+     * @notice sets an operation as "allowed"
+     * @param operation the operation to allow
+     * @return _ boolean indicating if the update succeeded
+     */
     function addAllowedOperation(string calldata operation) external onlyOwner returns (bool) {
         require(!allowedOperations[operation], "DPF: OPERATION_ALREADY_ALLOWED");
 
@@ -186,6 +239,11 @@ abstract contract DataPrivacyFramework is Ownable {
         return true;
     }
 
+    /**
+     * @notice removes an "allowed" operation
+     * @param operation the operation to remove
+     * @return _ boolean indicating if the update succeeded
+     */
     function removeAllowedOperation(string calldata operation) external onlyOwner returns (bool) {
         require(allowedOperations[operation], "DPF: OPERATION_NOT_ALLOWED");
 
@@ -194,6 +252,11 @@ abstract contract DataPrivacyFramework is Ownable {
         return true;
     }
 
+    /**
+     * @notice sets an operation as "restricted"
+     * @param operation the operation to restrict
+     * @return _ boolean indicating if the update succeeded
+     */
     function addRestrictedOperation(string calldata operation) external onlyOwner returns (bool) {
         require(!restrictedOperations[operation], "DPF: OPERATION_ALREADY_RESTRICTED");
 
@@ -202,6 +265,11 @@ abstract contract DataPrivacyFramework is Ownable {
         return true;
     }
 
+    /**
+     * @notice removes a "restricted" operation
+     * @param operation the operation to remove
+     * @return _ boolean indicating if the update succeeded
+     */
     function removeRestrictedOperation(string calldata operation) external onlyOwner returns (bool) {
         require(restrictedOperations[operation], "DPF: OPERATION_NOT_RESTRICTED");
 
@@ -210,11 +278,16 @@ abstract contract DataPrivacyFramework is Ownable {
         return true;
     }
 
+    /**
+     * @notice creates a new permission or overwrites an existing one with the same caller and operation
+     * @param inputData struct containing the parameters of the new permission
+     * @return _ boolean indicating if the update succeeded
+     */
     function setPermission(InputData memory inputData) external onlyOwner returns (bool) {
-        if (permissions[inputData.caller][inputData.operation] == 0) {
+        if (permissions[inputData.caller][inputData.operation] == 0) { // we skip ID=0 to allow us to use this value to indicate a null entry
             _conditionsCount++;
 
-            callerRows[inputData.caller]++;
+            activePermissions[inputData.caller]++; // increment first to allow the first permission to have ID=1
             permissions[inputData.caller][inputData.operation] = _conditionsCount;
 
             conditions[_conditionsCount] = Condition(
@@ -231,12 +304,14 @@ abstract contract DataPrivacyFramework is Ownable {
                 inputData.stringParameter
             );
         } else {
+            // if there is an existing inactive permission and we are activating it then we increment activePermissions[caller]
             if (inputData.active && !conditions[permissions[inputData.caller][inputData.operation]].active) {
-                callerRows[inputData.caller]++;
+                activePermissions[inputData.caller]++;
             }
 
+            // if there is an existing active permission and we are deactivating it then we decrement activePermissions[caller]
             if (!inputData.active && conditions[permissions[inputData.caller][inputData.operation]].active) {
-                callerRows[inputData.caller]--;
+                activePermissions[inputData.caller]--;
             }
 
             Condition storage condition = conditions[permissions[inputData.caller][inputData.operation]];
@@ -254,6 +329,16 @@ abstract contract DataPrivacyFramework is Ownable {
         return true;
     }
 
+    /**
+     * @dev searches for a relevant and active permission and checks if the conditions are satisfied
+     * @param caller the address of the user who is seeking permission to perform some computation on private data
+     * @param operation the operation which the user is seeking to perform
+     * @param parameterType enum indicating the type of paramter we are using for comparison
+     * @param uintParameter parameter of type uint256 used to check for permissions
+     * @param addressParameter parameter of type address used to check for permissions
+     * @param stringParameter parameter of type string used to check for permissions
+     * @return _ boolean indicating if the caller has sufficient permission
+     */
     function _getPermission(
         address caller,
         string calldata operation,
@@ -262,9 +347,10 @@ abstract contract DataPrivacyFramework is Ownable {
         address addressParameter,
         string memory stringParameter
     ) internal view returns (bool) {
-        if (restrictedOperations[operation]) return false;
-        if (!allowedOperations[STRING_ALL] && !allowedOperations[operation]) return false;
+        if (restrictedOperations[operation]) return false; // first we check if the operation is restricted
+        if (!allowedOperations[STRING_ALL] && !allowedOperations[operation]) return false; // second we check if the operation is allowed
         
+        // the provided caller has an active permission for the given operation
         if (conditions[permissions[caller][operation]].active) {
             return _evaluateCondition(
                 conditions[permissions[caller][operation]],
@@ -275,6 +361,7 @@ abstract contract DataPrivacyFramework is Ownable {
             );
         }
 
+        // the provided caller has an active permission for all operations
         if (conditions[permissions[caller][STRING_ALL]].active) {
             return _evaluateCondition(
                 conditions[permissions[caller][STRING_ALL]],
@@ -285,10 +372,12 @@ abstract contract DataPrivacyFramework is Ownable {
             );
         }
 
-        if (callerRows[caller] > 0) {
+        // fallback for when the provided caller has some active permissions but none are matching the given operation
+        if (activePermissions[caller] > 0) {
             return operationDefaultPermission;
         }
 
+        // all users are permitted to compute the given operation
         if (conditions[permissions[ADDRESS_ALL][operation]].active) {
             return _evaluateCondition(
                 conditions[permissions[ADDRESS_ALL][operation]],
@@ -299,6 +388,7 @@ abstract contract DataPrivacyFramework is Ownable {
             );
         }
 
+        // all users are permitted to compute all operations
         if (conditions[permissions[ADDRESS_ALL][STRING_ALL]].active) {
             return _evaluateCondition(
                 conditions[permissions[ADDRESS_ALL][STRING_ALL]],
@@ -309,9 +399,19 @@ abstract contract DataPrivacyFramework is Ownable {
             );
         }
 
+        // fallback for when no relevant permissions are found
         return addressDefaultPermission;
     }
 
+    /**
+     * @dev verifies that all conditions are satisfied
+     * @param condition struct containing the parameters of the condition
+     * @param parameterType enum indicating the type of paramter we are using for comparison
+     * @param uintParameter parameter of type uint256 used to check for permissions
+     * @param addressParameter parameter of type address used to check for permissions
+     * @param stringParameter parameter of type string used to check for permissions
+     * @return _ boolean indicating if the conditions are satisfied
+     */
     function _evaluateCondition(
         Condition memory condition,
         ParameterType parameterType,
@@ -335,7 +435,7 @@ abstract contract DataPrivacyFramework is Ownable {
             return false;
         } else if (parameterType == ParameterType.AddressParam && condition.addressParameter != addressParameter) {
             return false;
-        } else if (parameterType == ParameterType.StringParam && keccak256(abi.encodePacked(condition.stringParameter)) != keccak256(abi.encodePacked(stringParameter))) {
+        } else if (parameterType == ParameterType.StringParam && keccak256(abi.encodePacked(condition.stringParameter)) != keccak256(abi.encodePacked(stringParameter))) { // solidity does not support comparing strings so we compare the hashes instead
             return false;
         }
 

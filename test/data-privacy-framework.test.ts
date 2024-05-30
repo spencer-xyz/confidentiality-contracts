@@ -219,10 +219,10 @@ describe("Data Privacy Framework", function () {
       expect(condition[10]).to.equal("")
     })
 
-    it("Should update the callerRows mapping", async function () {
+    it("Should update the activePermissions mapping", async function () {
       const { contract } = deployment
 
-      const rows = await contract.callerRows("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562")
+      const rows = await contract.activePermissions("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562")
 
       expect(rows).to.equal(1)
     })
@@ -249,7 +249,7 @@ describe("Data Privacy Framework", function () {
       expect(permissionGranted).to.equal(false)
     })
 
-    it("Should not increment callerRows", async function () {
+    it("Should not increment activePermissions", async function () {
       const { contract } = deployment
 
       const inputData: DataPrivacyFramework.InputDataStruct = {
@@ -269,12 +269,12 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const callerRows = await contract.callerRows("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562")
+      const activePermissions = await contract.activePermissions("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562")
 
-      expect(callerRows).to.equal(1)
+      expect(activePermissions).to.equal(1)
     })
 
-    it("Should decrement callerRows", async function () {
+    it("Should decrement activePermissions", async function () {
       const { contract } = deployment
 
       const inputData: DataPrivacyFramework.InputDataStruct = {
@@ -294,12 +294,12 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const callerRows = await contract.callerRows("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562")
+      const activePermissions = await contract.activePermissions("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562")
 
-      expect(callerRows).to.equal(0)
+      expect(activePermissions).to.equal(0)
     })
 
-    it("Should increment callerRows", async function () {
+    it("Should increment activePermissions", async function () {
       const { contract } = deployment
 
       const inputData: DataPrivacyFramework.InputDataStruct = {
@@ -319,9 +319,9 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const callerRows = await contract.callerRows("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562")
+      const activePermissions = await contract.activePermissions("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562")
 
-      expect(callerRows).to.equal(1)
+      expect(activePermissions).to.equal(1)
     })
   })
 
@@ -401,7 +401,7 @@ describe("Data Privacy Framework", function () {
     it("Should return the first two conditions", async function () {
       const { contract } = deployment
 
-      const conditions = await contract.getPermissions(1, 2)
+      const conditions = await contract.getConditions(1, 2)
 
       expect(conditions.length).to.equal(2)
     })
@@ -409,7 +409,7 @@ describe("Data Privacy Framework", function () {
     it("Should return the third and fourth conditions", async function () {
       const { contract } = deployment
 
-      const conditions = await contract.getPermissions(3, 2)
+      const conditions = await contract.getConditions(3, 2)
 
       expect(conditions.length).to.equal(2)
     })
@@ -417,7 +417,7 @@ describe("Data Privacy Framework", function () {
     it("Should return the fifth condition", async function () {
       const { contract } = deployment
 
-      const conditions = await contract.getPermissions(5, 2)
+      const conditions = await contract.getConditions(5, 2)
 
       expect(conditions.length).to.equal(1)
     })
