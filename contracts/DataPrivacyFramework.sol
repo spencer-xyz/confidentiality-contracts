@@ -58,7 +58,7 @@ abstract contract DataPrivacyFramework is Ownable {
 
     mapping(address => mapping(string => uint256)) public permissions; // caller => operation => idx
 
-    uint256 private _conditionsCount;
+    uint256 private _conditionsCount = 1; // we skip ID=0 to allow us to use this value to indicate a null entry
 
     mapping(uint256 => Condition) public conditions; // idx => conditions
 
@@ -87,10 +87,11 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (Condition[] memory)
     {
-        require(startIdx <= _conditionsCount, "DPF: INVALID_START_IDX");
+        require(startIdx > 0, "DPF: START_IDX_ZERO");
+        require(startIdx <= _conditionsCount - 1, "DPF: INVALID_START_IDX");
 
         // ensures that startIdx + arrSize is not larger than the maximum condition ID
-        uint256 arrSize = startIdx + chunkSize - 1 <= _conditionsCount ? chunkSize : _conditionsCount - startIdx + 1;
+        uint256 arrSize = startIdx + chunkSize - 1 <= _conditionsCount - 1 ? chunkSize : _conditionsCount - startIdx;
 
         Condition[] memory conditions_ = new Condition[](arrSize);
 
@@ -287,10 +288,7 @@ abstract contract DataPrivacyFramework is Ownable {
      * @return _ boolean indicating if the update succeeded
      */
     function setPermission(InputData memory inputData) external onlyOwner returns (bool) {
-        if (permissions[inputData.caller][inputData.operation] == 0) { // we skip ID=0 to allow us to use this value to indicate a null entry
-            _conditionsCount++;
-
-            activePermissions[inputData.caller]++; // increment first to allow the first permission to have ID=1
+        if (permissions[inputData.caller][inputData.operation] == 0) {
             permissions[inputData.caller][inputData.operation] = _conditionsCount;
 
             conditions[_conditionsCount] = Condition(
@@ -306,18 +304,21 @@ abstract contract DataPrivacyFramework is Ownable {
                 inputData.addressParameter,
                 inputData.stringParameter
             );
+
+            ++_conditionsCount;
+            ++activePermissions[inputData.caller];
         } else {
+            Condition storage condition = conditions[permissions[inputData.caller][inputData.operation]];
+
             // if there is an existing inactive permission and we are activating it then we increment activePermissions[caller]
-            if (inputData.active && !conditions[permissions[inputData.caller][inputData.operation]].active) {
-                activePermissions[inputData.caller]++;
+            if (inputData.active && !condition.active) {
+                ++activePermissions[inputData.caller];
             }
 
             // if there is an existing active permission and we are deactivating it then we decrement activePermissions[caller]
-            if (!inputData.active && conditions[permissions[inputData.caller][inputData.operation]].active) {
-                activePermissions[inputData.caller]--;
+            if (!inputData.active && condition.active) {
+                --activePermissions[inputData.caller];
             }
-
-            Condition storage condition = conditions[permissions[inputData.caller][inputData.operation]];
 
             condition.active = inputData.active;
             condition.timestampBefore = inputData.timestampBefore;
