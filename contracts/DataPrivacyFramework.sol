@@ -26,10 +26,10 @@ abstract contract DataPrivacyFramework is Ownable {
         address caller; // caller associated with this condition
         string operation; // operation associated with this condition
         bool active; // indicates if the permission is active
-        uint256 timestampBefore; // condition is valid before this timestamp
-        uint256 timestampAfter; // condition is valid after this timestamp
         bool falseKey; // causes the condition to never be satisfied
         bool trueKey; // causes the permission to always be satisfied (but has lower priority than falseKey)
+        uint256 timestampBefore; // condition is valid before this timestamp
+        uint256 timestampAfter; // condition is valid after this timestamp
         uint256 uintParameter; // parameter of type uint256 used for verifying if the caller has permission to perform the computation
         address addressParameter; // parameter of type address used for verifying if the caller has permission to perform the computation
         string stringParameter;// parameter of type string used for verifying if the caller has permission to perform the computation
@@ -80,10 +80,10 @@ abstract contract DataPrivacyFramework is Ownable {
             ADDRESS_ALL,
             STRING_ALL,
             true,
-            0,
-            0,
             false,
             false,
+            0,
+            0,
             0,
             address(0),
             ""
@@ -328,10 +328,10 @@ abstract contract DataPrivacyFramework is Ownable {
                 inputData.caller,
                 inputData.operation,
                 inputData.active,
-                inputData.timestampBefore,
-                inputData.timestampAfter,
                 inputData.falseKey,
                 inputData.trueKey,
+                inputData.timestampBefore,
+                inputData.timestampAfter,
                 inputData.uintParameter,
                 inputData.addressParameter,
                 inputData.stringParameter
