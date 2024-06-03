@@ -18,3 +18,7 @@ Use this template to start building your projects on COTI using [Hardhat](https:
   ```
   yarn test
   ```
+
+## Contract Addresses
+
+- Deterministic Deployment Proxy: 0x82ef9f06587a121ce4235394a0d2ef7fb776a49c
