@@ -33,33 +33,6 @@ describe("Data Privacy Framework", function () {
   })
 
   describe("Allowing operations", function () {
-    before(async function() {
-      const { contract } = deployment
-
-      const tx = await contract.addAllowedOperation("*")
-      
-      await tx.wait()
-    })
-
-    it("Should update the allowed operations mapping", async function () {
-      const { contract } = deployment
-
-      const isAllowed = await contract.allowedOperations("*")
-
-      expect(isAllowed).to.equal(true)
-    })
-
-    it("Should allow all operations for all users", async function () {
-      const { contract } = deployment
-
-      const permissionGranted = await contract["getPermission(address,string)"](
-        "0xB75fc724A3F951b6D25310d476893b60f4B77C8F", // random address
-        "yzfsvycmua" // random string
-      )
-
-      expect(permissionGranted).to.equal(true)
-    })
-
     it("Should remove '*' from the allowed operations mapping", async function () {
       const { contract } = deployment
 
@@ -71,17 +44,36 @@ describe("Data Privacy Framework", function () {
 
       expect(isAllowed).to.equal(false)
     })
+
+    it("Should update the allowed operations mapping", async function () {
+      const { contract } = deployment
+
+      const tx = await contract.addAllowedOperation("*")
+      
+      await tx.wait()
+
+      const isAllowed = await contract.allowedOperations("*")
+
+      expect(isAllowed).to.equal(true)
+    })
+
+    it("Should allow all operations for all users", async function () {
+      const { contract } = deployment
+
+      const permissionGranted = await contract["isOperationAllowed(address,string)"](
+        "0xB75fc724A3F951b6D25310d476893b60f4B77C8F", // random address
+        "yzfsvycmua" // random string
+      )
+
+      expect(permissionGranted).to.equal(true)
+    })
   })
 
   describe("Restricting operations", function () {
     before(async function() {
       const { contract } = deployment
 
-      let tx = await contract.addAllowedOperation("*")
-      
-      await tx.wait()
-
-      tx = await contract.addRestrictedOperation("decrypt")
+      const tx = await contract.addRestrictedOperation("decrypt")
       
       await tx.wait()
     })
@@ -97,7 +89,7 @@ describe("Data Privacy Framework", function () {
     it("Should not allow any user to decrypt", async function () {
       const { contract } = deployment
 
-      const permissionGranted = await contract["getPermission(address,string)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string)"](
         "0xb818166f592329B1c6122c447E078425AF522e96", // random address
         "decrypt"
       )
@@ -108,7 +100,7 @@ describe("Data Privacy Framework", function () {
     it("Should allow all other operations for all users", async function () {
       const { contract } = deployment
 
-      const permissionGranted = await contract["getPermission(address,string)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string)"](
         "0x21AF6033aaC0E75eD898a9742183aC06B562bc92", // random address
         "mztsdimwve" // random string
       )
@@ -175,7 +167,24 @@ describe("Data Privacy Framework", function () {
     before(async function() {
       const { contract } = deployment
 
-      const inputData: DataPrivacyFramework.InputDataStruct = {
+      let inputData: DataPrivacyFramework.InputDataStruct = {
+        caller: "0x0000000000000000000000000000000000000001",
+        operation: "*",
+        active: false,
+        timestampBefore: "0",
+        timestampAfter: "0",
+        falseKey: false,
+        trueKey: false,
+        uintParameter: "0",
+        addressParameter: "0x0000000000000000000000000000000000000000",
+        stringParameter: ""
+      }
+
+      let tx = await contract.setPermission(inputData)
+      
+      await tx.wait()
+
+      inputData = {
         caller: "0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562",
         operation: "gt",
         active: true,
@@ -188,7 +197,7 @@ describe("Data Privacy Framework", function () {
         stringParameter: ""
       }
 
-      const tx = await contract.setPermission(inputData)
+      tx = await contract.setPermission(inputData)
       
       await tx.wait()
     })
@@ -198,15 +207,15 @@ describe("Data Privacy Framework", function () {
 
       const conditionIdx = await contract.permissions("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562", "gt")
 
-      expect(conditionIdx).to.equal(1)
+      expect(conditionIdx).to.equal(2)
     })
 
     it("Should update the conditions mapping", async function () {
       const { contract } = deployment
 
-      const condition = await contract.conditions(1)
+      const condition = await contract.conditions(2)
 
-      expect(condition[0]).to.equal(BigInt(1))
+      expect(condition[0]).to.equal(BigInt(2))
       expect(condition[1]).to.equal("0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562")
       expect(condition[2]).to.equal("gt")
       expect(condition[3]).to.equal(true)
@@ -230,7 +239,7 @@ describe("Data Privacy Framework", function () {
     it("Should allow 0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562 to compute gt", async function () {
       const { contract } = deployment
 
-      const permissionGranted = await contract["getPermission(address,string)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string)"](
         "0x70D6c0e13B60964D3A3e372Dd86acA7b75dcc562",
         "gt"
       )
@@ -241,7 +250,7 @@ describe("Data Privacy Framework", function () {
     it("Should not allow other addresses to compute gt", async function () {
       const { contract } = deployment
 
-      const permissionGranted = await contract["getPermission(address,string)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string)"](
         "0x7dc13edFF17da7e6D903573E688A5e06746B85e1", // random address
         "gt"
       )
@@ -379,23 +388,6 @@ describe("Data Privacy Framework", function () {
       tx = await contract.setPermission(inputData)
       
       await tx.wait()
-
-      inputData = {
-        caller: "0xe57F3505af334be3081F803F0453B1CBD006829d",
-        operation: "pavdshgymp",
-        active: true,
-        timestampBefore: "0",
-        timestampAfter: "0",
-        falseKey: false,
-        trueKey: false,
-        uintParameter: "0",
-        addressParameter: "0x0000000000000000000000000000000000000000",
-        stringParameter: ""
-      }
-
-      tx = await contract.setPermission(inputData)
-      
-      await tx.wait()
     })
 
     it("Should return the first two conditions", async function () {
@@ -444,7 +436,7 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const permissionGranted = await contract["getPermission(address,string)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string)"](
         "0x5b8E1b957369135d58a86c736F5eea661B929227",
         "gt"
       )
@@ -472,7 +464,7 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const permissionGranted = await contract["getPermission(address,string)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string)"](
         "0x5b8E1b957369135d58a86c736F5eea661B929227",
         "gt"
       )
@@ -500,7 +492,7 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const permissionGranted = await contract["getPermission(address,string)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string)"](
         "0x5b8E1b957369135d58a86c736F5eea661B929227",
         "gt"
       )
@@ -528,7 +520,7 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const permissionGranted = await contract["getPermission(address,string)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string)"](
         "0x5b8E1b957369135d58a86c736F5eea661B929227",
         "gt"
       )
@@ -556,7 +548,7 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const permissionGranted = await contract["getPermission(address,string,uint256)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string,uint256)"](
         "0x5b8E1b957369135d58a86c736F5eea661B929227",
         "gt",
         BigInt(2)
@@ -585,7 +577,7 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const permissionGranted = await contract["getPermission(address,string,address)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string,address)"](
         "0x5b8E1b957369135d58a86c736F5eea661B929227",
         "gt",
         "0x0000000000000000000000000000000000000002"
@@ -614,7 +606,7 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const permissionGranted = await contract["getPermission(address,string,string)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string,string)"](
         "0x5b8E1b957369135d58a86c736F5eea661B929227",
         "gt",
         "def"
@@ -657,7 +649,7 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const permissionGranted = await contract["getPermission(address,string)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string)"](
         "0xbC70898a84DE49d3aA3190b124542bc5eca88A5C",
         "gt"
       )
@@ -702,7 +694,7 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const permissionGranted = await contract["getPermission(address,string)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string)"](
         "0xbC70898a84DE49d3aA3190b124542bc5eca88A5C",
         "gt"
       )
@@ -730,7 +722,7 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const permissionGranted = await contract["getPermission(address,string)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string)"](
         "0x9e874196782e439FD2CEFcF62bC5c59816a6ae8b",
         "gt"
       )
@@ -775,7 +767,7 @@ describe("Data Privacy Framework", function () {
       
       await tx.wait()
 
-      const permissionGranted = await contract["getPermission(address,string)"](
+      const permissionGranted = await contract["isOperationAllowed(address,string)"](
         "0x9e874196782e439FD2CEFcF62bC5c59816a6ae8b",
         "gt"
       )

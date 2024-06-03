@@ -46,9 +46,9 @@ abstract contract DataPrivacyFramework is Ownable {
 
     string public constant STRING_ALL = "*"; // used to indicate the generic string
 
-    bool public addressDefaultPermission;
+    bool public addressDefaultPermission; // TODO: Replace with more descriptive name
 
-    bool public operationDefaultPermission;
+    bool public operationDefaultPermission; // TODO: Replace with more descriptive name
 
     mapping(string => bool) public allowedOperations;
 
@@ -69,6 +69,35 @@ abstract contract DataPrivacyFramework is Ownable {
     constructor(bool addressDefaultPermission_, bool operationDefaultPermission_) Ownable(msg.sender) {
         addressDefaultPermission = addressDefaultPermission_;
         operationDefaultPermission = operationDefaultPermission_;
+
+        // TODO: ADD friendly defaults
+        allowedOperations[STRING_ALL] = true;
+
+        permissions[ADDRESS_ALL][STRING_ALL] = _conditionsCount;
+
+        conditions[_conditionsCount] = Condition(
+            _conditionsCount,
+            ADDRESS_ALL,
+            STRING_ALL,
+            true,
+            0,
+            0,
+            false,
+            false,
+            0,
+            address(0),
+            ""
+        );
+
+        ++_conditionsCount;
+        ++activePermissions[ADDRESS_ALL];
+    }
+
+    /**
+     * @notice returns the number of rows in the conditions table
+     */
+    function getConditionsCount() external view returns (uint256) {
+        return _conditionsCount - 1;
     }
 
     /**
@@ -88,7 +117,10 @@ abstract contract DataPrivacyFramework is Ownable {
         returns (Condition[] memory)
     {
         require(startIdx > 0, "DPF: START_IDX_ZERO");
-        require(startIdx <= _conditionsCount - 1, "DPF: INVALID_START_IDX");
+        require(chunkSize > 0, "DPF: CHUNK_SIZE_ZERO");
+
+        // reached end of table
+        if (startIdx >= _conditionsCount) return new Condition[](0);
 
         // ensures that startIdx + arrSize is not larger than the maximum condition ID
         uint256 arrSize = startIdx + chunkSize - 1 <= _conditionsCount - 1 ? chunkSize : _conditionsCount - startIdx;
@@ -108,7 +140,7 @@ abstract contract DataPrivacyFramework is Ownable {
      * @param operation the operation which the user is seeking to perform
      * @return _ boolean indicating if the user has permission to perform the computation
      */
-    function getPermission(
+    function isOperationAllowed(
         address caller,
         string calldata operation
     )
@@ -116,7 +148,7 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (bool)
     {
-        return _getPermission(
+        return _isOperationAllowed(
             caller,
             operation,
             ParameterType.None,
@@ -133,7 +165,7 @@ abstract contract DataPrivacyFramework is Ownable {
      * @param uintParameter parameter of type uint256 used to check for permissions
      * @return _ boolean indicating if the user has permission to perform the computation
      */
-    function getPermission(
+    function isOperationAllowed(
         address caller,
         string calldata operation,
         uint256 uintParameter
@@ -142,7 +174,7 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (bool)
     {
-        return _getPermission(
+        return _isOperationAllowed(
             caller,
             operation,
             ParameterType.UintParam,
@@ -159,7 +191,7 @@ abstract contract DataPrivacyFramework is Ownable {
      * @param addressParameter parameter of type address used to check for permissions
      * @return _ boolean indicating if the user has permission to perform the computation
      */
-    function getPermission(
+    function isOperationAllowed(
         address caller,
         string calldata operation,
         address addressParameter
@@ -168,7 +200,7 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (bool)
     {
-        return _getPermission(
+        return _isOperationAllowed(
             caller,
             operation,
             ParameterType.AddressParam,
@@ -185,7 +217,7 @@ abstract contract DataPrivacyFramework is Ownable {
      * @param stringParameter parameter of type string used to check for permissions
      * @return _ boolean indicating if the user has permission to perform the computation
      */
-    function getPermission(
+    function isOperationAllowed(
         address caller,
         string calldata operation,
         string calldata stringParameter
@@ -194,7 +226,7 @@ abstract contract DataPrivacyFramework is Ownable {
         view
         returns (bool)
     {
-        return _getPermission(
+        return _isOperationAllowed(
             caller,
             operation,
             ParameterType.StringParam,
@@ -343,7 +375,7 @@ abstract contract DataPrivacyFramework is Ownable {
      * @param stringParameter parameter of type string used to check for permissions
      * @return _ boolean indicating if the caller has sufficient permission
      */
-    function _getPermission(
+    function _isOperationAllowed(
         address caller,
         string calldata operation,
         ParameterType parameterType,
