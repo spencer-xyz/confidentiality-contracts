@@ -70,7 +70,7 @@ abstract contract DataPrivacyFramework is Ownable {
         addressDefaultPermission = addressDefaultPermission_;
         operationDefaultPermission = operationDefaultPermission_;
 
-        // TODO: ADD friendly defaults
+        // by default we allow all users and all operations
         allowedOperations[STRING_ALL] = true;
 
         permissions[ADDRESS_ALL][STRING_ALL] = _conditionsCount;
