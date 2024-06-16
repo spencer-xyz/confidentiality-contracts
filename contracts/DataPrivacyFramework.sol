@@ -73,24 +73,7 @@ abstract contract DataPrivacyFramework is Ownable {
         // by default we allow all users and all operations
         allowedOperations[STRING_ALL] = true;
 
-        permissions[ADDRESS_ALL][STRING_ALL] = _conditionsCount;
-
-        conditions[_conditionsCount] = Condition(
-            _conditionsCount,
-            ADDRESS_ALL,
-            STRING_ALL,
-            true,
-            false,
-            false,
-            0,
-            0,
-            0,
-            address(0),
-            ""
-        );
-
-        ++_conditionsCount;
-        ++activePermissions[ADDRESS_ALL];
+        setPermission(InputData (ADDRESS_ALL, STRING_ALL, true, 0, 0, false, false, 0, address(0), ""));
     }
 
     /**
@@ -319,7 +302,7 @@ abstract contract DataPrivacyFramework is Ownable {
      * @param inputData struct containing the parameters of the new permission
      * @return _ boolean indicating if the update succeeded
      */
-    function setPermission(InputData memory inputData) external onlyOwner returns (bool) {
+    function setPermission(InputData memory inputData) public onlyOwner returns (bool) {
         if (permissions[inputData.caller][inputData.operation] == 0) {
             permissions[inputData.caller][inputData.operation] = _conditionsCount;
 
