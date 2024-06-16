@@ -26,6 +26,7 @@ contract OnChainDatabase is DataPrivacyFramework {
         setPermission(InputData (msg.sender, "op_get_item", true, 0, 0, false, false, 0, address(0), ""));
     }
 
+    // NOTE: Consider using camel case
     function set_item(string memory name, ctUint64 _itCT, bytes calldata _itSignature) external {
         itUint64 memory it;
         it.ciphertext = _itCT;
@@ -67,4 +68,14 @@ contract OnChainDatabase is DataPrivacyFramework {
         }
     }
 
+    function get_clear_oil_coti_price() external {
+        if (this.isOperationAllowed(msg.sender, "op_get_clear_oil_usd_price") && this.isOperationAllowed(msg.sender, "op_get_clear_coti_usd_price")) {
+            gtUint64 a = MpcCore.onBoard(database["oil_usd_price"]);
+            gtUint64 b = MpcCore.onBoard(database["coti_usd_price"]);
+            gtUint64 c = MpcCore.div(a, b); // NOTE: Might want to consider using 18 decimals
+            emit value(msg.sender, MpcCore.decrypt(c));
+        } else {
+            revert("No Permission!");
+        }
+    }
 }
